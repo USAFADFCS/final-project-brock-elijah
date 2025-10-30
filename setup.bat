@@ -3,6 +3,7 @@ call enter.bat
 
 python -m pip install --upgrade pip
 python -m pip install -r ./junk/requirements.txt
+python -m playwright install chromium
 
 xcopy .env.example .env
 
