@@ -1,4 +1,4 @@
-
+from core.interfaces.tools import AbstractTool
 
 
 RATE_LIMITER = 1000 # ms between requests from the same site
