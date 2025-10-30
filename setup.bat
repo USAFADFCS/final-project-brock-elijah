@@ -1,5 +1,7 @@
 python -m venv ./env
 call enter.bat
+
+python -m pip install --upgrade pip
 python -m pip install -r ./junk/requirements.txt
 
 xcopy .env.example .env
