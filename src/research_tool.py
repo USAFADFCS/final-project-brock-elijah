@@ -3,7 +3,7 @@ from searcher import Searcher
 import asyncio
 
 
-class Reasearch_Tool(AbstractTool):
+class Research_Tool(AbstractTool):
     name = "topic_source_finder"
     description = (
         "Researches sources across the web for a given topic. Use this ",
