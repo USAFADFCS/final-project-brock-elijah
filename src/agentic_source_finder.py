@@ -1,266 +1,137 @@
-import re
+import asyncio
+from typing import Awaitable, Any, Dict
+from fairlib import (
+    SimpleAgent,
+    ReActPlanner,
+    ToolExecutor,
+    ToolRegistry,
+    WorkingMemory,
+    RoleDefinition,
+    Example,
+)
+# NOTE: Assuming these custom tools are defined and implement AbstractTool
 from research_tool import Research_Tool
-from typing import List, Set
-from collections import Counter
+from keyword_extractor_tool import Keyword_Extractor_Tool
+from fairlib.modules.mal.huggingface_adapter import HuggingFaceAdapter
+from fairlib.core.interfaces.tools import AbstractTool
 
+# --- Configuration Constants ---
+# Use the Hugging Face Model Abstraction Layer (MAL) for Llama-3.2-3B-Instruct
+MODEL_NAME = "meta-llama/Llama-3.2-3B-Instruct" 
+# NOTE: In a real environment, you would need to ensure the adapter is configured
+# to access this model via an API endpoint or a locally running inference server.
+# For simplicity, we assume the HuggingFaceAdapter can access it.
 
-def extract_topics_from_text(text: str, max_topics: int = 5) -> List[str]:
-    """
-    Extract key topics/keywords from input text.
-    Uses word frequency and length heuristics to identify meaningful terms.
-    
-    Args:
-        text: The input document text
-        max_topics: Maximum number of topics to extract
-        
-    Returns:
-        List of topic strings to research
-    """
-    # Convert to lowercase and extract words (5+ characters to be more selective)
-    words = re.findall(r'\b[a-zA-Z]{5,}\b', text.lower())
-    
-    # Expanded stop words list - common words that don't make good search terms
-    stop_words = {
-        'that', 'this', 'with', 'have', 'from', 'they', 'been', 
-        'were', 'will', 'their', 'what', 'about', 'which', 'when',
-        'there', 'would', 'could', 'should', 'these', 'those', 'than',
-        'where', 'while', 'being', 'other', 'often', 'through', 'between',
-        'during', 'before', 'after', 'under', 'around', 'within', 'without',
-        'highly', 'human', 'humans', 'known', 'called', 'named', 'various',
-        'several', 'including', 'making', 'still', 'years', 'number',
-        'people', 'things', 'place', 'found', 'however', 'among', 'another'
-    }
-    
-    # Filter out stop words
-    filtered_words = [w for w in words if w not in stop_words]
-    
-    # Count word frequency
-    word_freq = Counter(filtered_words)
-    
-    # Get most common words as topics
-    topics = [word for word, count in word_freq.most_common(max_topics)]
-    
-    return topics
+def setup_huggingface_agent(
+    research_tool: AbstractTool, 
+    keyword_extractor_tool: AbstractTool
+) -> SimpleAgent:
+    """Initializes and configures the SimpleAgent with the Llama 3.2 model and tools."""
 
+    # 1. Initialize the Model Abstraction Layer (MAL)
+    # The HuggingFaceAdapter is used for models hosted on HF or via a compatible endpoint.
+    # Note: Replace 'your_api_key' with a valid key or token if required for the model.
+    llm = HuggingFaceAdapter(model_name=MODEL_NAME, api_key="placeholder")
 
-def extract_phrases_from_text(text: str, max_phrases: int = 3) -> List[str]:
-    """
-    Extract multi-word phrases that might be important topics.
-    Looks for capitalized phrases or quoted terms.
-    
-    Args:
-        text: The input document text
-        max_phrases: Maximum number of phrases to extract
-        
-    Returns:
-        List of phrase strings to research
-    """
-    phrases = []
-    
-    # Find quoted phrases
-    quoted = re.findall(r'"([^"]+)"', text)
-    phrases.extend(quoted[:max_phrases])
-    
-    # Find capitalized multi-word terms (but not sentence starts)
-    # This catches things like "Golden Retriever" or "Service Dogs"
-    cap_phrases = re.findall(r'(?<=[.!?]\s)([A-Z][a-z]+(?: [A-Z][a-z]+)+)', text)
-    phrases.extend(cap_phrases[:max_phrases - len(phrases)])
-    
-    return phrases[:max_phrases]
+    # 2. Define the Agent's Tool Registry and Executor
+    tool_registry = ToolRegistry()
+    tool_registry.register_tool(research_tool)
+    tool_registry.register_tool(keyword_extractor_tool)
+    executor = ToolExecutor(tool_registry)
 
+    # 3. Configure the Agent's Brain (Planner and PromptBuilder)
+    planner = ReActPlanner(llm, tool_registry)
+    
+    # 4. Customize the Agent's Role and Prompt (The "Personality")
+    
+    # Set a highly specific RoleDefinition
+    planner.prompt_builder.role_definition = RoleDefinition(
+        "You are an expert academic research assistant whose sole job is to find "
+        "the most relevant reference sources for a provided essay. You must first "
+        "use the keyword_extractor_tool, use those to guide the process of finding "
+        "topics, and then use the research_tool with "
+        "the resulting topics to find sources."
+    )
 
-def deduplicate_sources(all_sources: List[str]) -> List[str]:
-    """
-    Remove duplicate URLs from collected sources.
-    
-    Args:
-        all_sources: List of URLs (may contain duplicates)
-        
-    Returns:
-        List of unique URLs
-    """
-    seen: Set[str] = set()
-    unique = []
-    
-    for source in all_sources:
-        if source not in seen:
-            seen.add(source)
-            unique.append(source)
-    
-    return unique
+    # Provide a few-shot example to guide the agent's workflow
+    planner.prompt_builder.examples.clear()
+    planner.prompt_builder.examples.append(
+        Example(
+            "# --- Example: Essay Source Finding Workflow ---\n"
+            "user: Find sources for the following essay: 'The rise of AI in education is a contentious issue...'\n"
+            "assistant: "
+            "Thought: The first step is to distill the long essay into searchable keywords. I will use the keyword_extractor_tool.\n"
+            "Action:\n"
+            "tool_name: keyword_extractor_tool\n"
+            "tool_input: The rise of AI in education is a contentious issue...\n"
+            "\n"
+            "system: Observation: The extracted keywords are: ['AI in education', 'contentious issue'].\n"
+            "assistant: "
+            "Thought: I have the core keywords. I will convert 'AI' into a topic to fit the context of the essay and use the research_tool to find sources.\n"
+            "Action:\n"
+            "tool_name: research_tool\n"
+            "tool_input: AI in education\n"
+            "\n"
+            "system: Observation: None.\n"
+            "assistant: "
+            "Thought: I will convert the second keyword, 'contentious issue', into a topic to fit the context of the essay and use the research_tool to find sources.\n"
+            "Action:\n"
+            "tool_name: research_tool\n"
+            "tool_input: AI in Education Contentions\n"
+            "\n"
+            "system: Observation: None.\n"
+            "assistant: "
+            "Thought: The research is complete and the research_tool now stores the final resources. I will indicate that research is complete.\n"
+            "Action:\n"
+            "tool_name: final_answer\n"
+            "tool_input: All research complete!"
+        )
+    )
 
+    # 5. Assemble the Agent
+    agent = SimpleAgent(
+        llm=llm,
+        planner=planner,
+        tool_executor=executor,
+        # We use WorkingMemory to hold the context of the essay and the search results
+        memory=WorkingMemory() 
+    )
+    
+    return agent
 
-def agentically_find_sources(essay: str, research_tool: Research_Tool, interactive: bool = True):
+async def agentically_find_sources(
+    essay: str, 
+    research_tool: Research_Tool, 
+    keyword_extractor_tool: Keyword_Extractor_Tool
+) -> str:
     """
-    Core agentic research function.
-    
-    Process:
-    1. Extract topics and phrases from the essay
-    2. Use Research_Tool to search for sources on each topic
-    3. Collect and deduplicate all found sources
-    4. Print summary of findings
-    5. Optionally allow user to do additional searches
-    
-    Args:
-        essay: The input text/document to research
-        research_tool: Instance of Research_Tool for performing searches
-        interactive: If True, prompts user for additional searches after completion
+    Uses the FAIR SimpleAgent with a Llama 3.2 model and two tools to find 
+    reference sources for a given essay.
     """
-    print("\n" + "="*60)
-    print("[Agentic Finder] Starting autonomous research process...")
-    print("="*60 + "\n")
     
-    # Step 1: Extract topics from the essay
-    print("[Agentic Finder] 📝 Analyzing document for key topics...")
+    # 1. Instantiate the pre-configured agent
+    agent = setup_huggingface_agent(research_tool, keyword_extractor_tool)
     
-    single_word_topics = extract_topics_from_text(essay, max_topics=4)
-    phrase_topics = extract_phrases_from_text(essay, max_phrases=2)
+    # 2. Define the user's initial request
+    user_request = (
+        "Find the most relevant and high-quality reference sources for the "
+        "following essay text. Use your tools to extract keywords and then "
+        f"perform the search:\n\n---\n{essay}\n---"
+    )
     
-    all_topics = single_word_topics + phrase_topics
+    # 3. Kick off the entire ReAct loop and await the final result
+    print("--- Starting Agentic Research Pipeline ---")
+    print(f"Agent Role: {agent.planner.prompt_builder.role_definition.content}")
+    print(f"Model: {MODEL_NAME}")
     
-    print(f"[Agentic Finder] ✓ Identified {len(all_topics)} topics to research:")
-    for i, topic in enumerate(all_topics, 1):
-        print(f"  {i}. '{topic}'")
+    # The agent's arun method manages the entire sequence:
+    # Keyword extraction -> Observation -> Search -> Observation -> Final Answer
+    response = await agent.arun(user_request)
     
-    # Step 2: Research each topic
-    print(f"\n[Agentic Finder] 🔍 Beginning research on {len(all_topics)} topics...\n")
-    
-    all_sources = []
-    sources_by_topic = {}  # Track sources for each topic
-    successful_searches = 0
-    
-    for idx, topic in enumerate(all_topics, 1):
-        print(f"\n{'─'*60}")
-        print(f"[Search {idx}/{len(all_topics)}] Researching: '{topic}'")
-        print(f"{'─'*60}")
-        
-        try:
-            result = research_tool.use(topic)
-            
-            # Handle different return formats
-            sources = []
-            
-            if result:
-                # If result is a dict with 'sources' key
-                if isinstance(result, dict) and 'sources' in result:
-                    sources = result['sources']
-                # If result is a list directly
-                elif isinstance(result, list):
-                    sources = result
-                # If result is a string (single URL)
-                elif isinstance(result, str):
-                    sources = [result]
-            
-            if sources:
-                print(f"[Agentic Finder] ✓ Found {len(sources)} sources for '{topic}'")
-                all_sources.extend(sources)
-                sources_by_topic[topic] = sources  # Store by topic
-                successful_searches += 1
-            else:
-                print(f"[Agentic Finder] ⚠ No sources returned for '{topic}'")
-                print(f"[Agentic Finder] Debug - Result type: {type(result)}, Value: {result}")
-                sources_by_topic[topic] = []
-                
-        except Exception as e:
-            print(f"[Agentic Finder] ✗ Error researching '{topic}': {e}")
-            sources_by_topic[topic] = []
-    
-    # Step 3: Deduplicate and summarize
-    print(f"\n{'='*60}")
-    print("[Agentic Finder] 📊 Research Summary")
-    print(f"{'='*60}")
-    
-    unique_sources = deduplicate_sources(all_sources)
-    
-    print(f"\n✓ Completed {successful_searches}/{len(all_topics)} successful searches")
-    print(f"✓ Total sources found: {len(all_sources)}")
-    print(f"✓ Unique sources: {len(unique_sources)}")
-    
-    if sources_by_topic:
-        print(f"\n📚 Sources by Topic:\n")
-        for topic, sources in sources_by_topic.items():
-            print(f"  [{topic.upper()}] - {len(sources)} sources")
-            for i, source in enumerate(sources, 1):
-                print(f"    {i}. {source}")
-            print()  # Blank line between topics
-    else:
-        print(f"\n⚠ No sources collected. Check if research_tool.use() is returning the links properly.")
-    
-    print(f"\n{'='*60}")
-    print("[Agentic Finder] ✅ Research process completed!")
-    print(f"{'='*60}\n")
-    
-    # Interactive mode - allow additional research rounds
-    if interactive:
-        already_searched = set(all_topics)
-        
-        while True:
-            print("─" * 60)
-            user_input = input("\n🔍 Search for more topics from the document? (press Enter to continue, 'q' to finish): ").strip().lower()
-            
-            if user_input == 'q':
-                print("\n[Agentic Finder] 👋 Ending research session.\n")
-                break
-            
-            # Extract more topics, excluding ones already searched
-            print("\n[Agentic Finder] 📝 Extracting additional topics from document...")
-            new_topics = extract_topics_from_text(essay, max_topics=8)
-            new_topics = [t for t in new_topics if t not in already_searched][:3]  # Get 3 new topics
-            
-            if not new_topics:
-                print("[Agentic Finder] ⚠ No new topics found. All relevant keywords already searched!")
-                continue
-            
-            print(f"[Agentic Finder] ✓ Found {len(new_topics)} new topics: {new_topics}\n")
-            
-            # Search each new topic
-            for idx, topic in enumerate(new_topics, 1):
-                print(f"{'─'*60}")
-                print(f"[Additional Search {idx}/{len(new_topics)}] Researching: '{topic}'")
-                print(f"{'─'*60}")
-                
-                try:
-                    result = research_tool.use(topic)
-                    
-                    sources = []
-                    if result:
-                        if isinstance(result, dict) and 'sources' in result:
-                            sources = result['sources']
-                        elif isinstance(result, list):
-                            sources = result
-                        elif isinstance(result, str):
-                            sources = [result]
-                    
-                    if sources:
-                        print(f"[Agentic Finder] ✓ Found {len(sources)} sources for '{topic}'")
-                        
-                        # Add to our collections
-                        all_sources.extend(sources)
-                        sources_by_topic[topic] = sources
-                        all_topics.append(topic)
-                        already_searched.add(topic)
-                        successful_searches += 1
-                    else:
-                        print(f"[Agentic Finder] ⚠ No sources found for '{topic}'")
-                        already_searched.add(topic)
-                        
-                except Exception as e:
-                    print(f"[Agentic Finder] ✗ Error researching '{topic}': {e}")
-                    already_searched.add(topic)
-        
-        # Update final counts
-        unique_sources = deduplicate_sources(all_sources)
-        print(f"\n{'='*60}")
-        print("[Agentic Finder] 📊 Final Research Summary")
-        print(f"{'='*60}")
-        print(f"\n✓ Total topics researched: {len(all_topics)}")
-        print(f"✓ Successful searches: {successful_searches}")
-        print(f"✓ Total unique sources: {len(unique_sources)}\n")
-    
-    return {
-        'topics': all_topics,
-        'sources': unique_sources,
-        'sources_by_topic': sources_by_topic,  # Include categorized sources
-        'total_searches': len(all_topics),
-        'successful_searches': successful_searches
-    }
+    print("--- Pipeline Complete ---")
+    return response
+
+# --- Note on Execution ---
+# The function is asynchronous and must be called from an event loop, 
+# typically via: asyncio.run(agentically_find_sources(...)) 
+# or by using await inside an async function.
