@@ -28,7 +28,10 @@ class Research_Tool(AbstractTool):
         for url in urls:
             print(f"Found: {url}")
             
-        return "Topic Research Successful!"
+        return {
+            'status': 'Topic Research Successful!',
+            'sources': urls
+        }
 
 
 

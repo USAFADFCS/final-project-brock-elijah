@@ -21,5 +21,7 @@ https://gemini.google.com/share/ce8de41a582c
 Playwright Stealth Tactics:
 https://claude.ai/share/e916aad5-8c2e-474e-ad94-7023fbb7f146
 
+Implementing Agentic Source Finder AI:
+https://claude.ai/chat/abbcaf23-d4df-422b-b7d6-5fa09014f137
 
 
