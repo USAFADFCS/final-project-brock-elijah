@@ -3,7 +3,7 @@ call enter.bat
 
 python -m pip install --upgrade pip
 call inst_dependencies.bat
-python -m playwright install chromium
+
 
 xcopy .env.example .env
 
