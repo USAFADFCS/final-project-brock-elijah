@@ -3,6 +3,7 @@ from searcher import Searcher
 import asyncio
 
 
+
 class Research_Tool(AbstractTool):
     name = "topic_source_finder"
     description = (
@@ -19,6 +20,7 @@ class Research_Tool(AbstractTool):
     
     def __init__(self, searchLoop):
         self.loop = searchLoop
+        self.sources = []
         super().__init__()
     
     def use(self, input_str):
@@ -26,11 +28,11 @@ class Research_Tool(AbstractTool):
         
         urls = web_search.execute_sync()
         for url in urls:
-            print(f"Found: {url}")
+            # print(f"Found: {url}")
+            self.sources.append(url)
             
         return {
-            'status': 'Topic Research Successful!',
-            'sources': urls
+            'status': f'Topic Research For \'{input_str}\' Successful!'
         }
 
 

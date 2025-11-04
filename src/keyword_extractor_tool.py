@@ -13,13 +13,19 @@ class Keyword_Extractor_Tool(AbstractTool):
         "you are gathering ideas for potential topics to research. Be ",
         "advised that the keywords extracted by this tool may need to be ",
         "slightly adapted in order to better fit the context of the essay.",
-        "This tool accepts a body of text as an input and returns a formatted ",
+        "This tool accepts no input (it already has a cached version of the essay"
+        "currently being analyzed) and returns a formatted ",
         "list of extracted keywords, which are suitable to be converted into ",
         "research topics."
     )
+
+
+    def __init__(self, essay_txt):
+        super().__init__()
+        self.essay_text = essay_txt
     
     def use(self, input_str : str):
-        return find_topics(input_str)
+        return find_topics(self.essay_text, False)
 
 
 def extract_topics_from_text(text: str, max_topics: int = 5) -> List[str]:
@@ -131,8 +137,8 @@ def find_topics(essay: str, interactive: bool = True):
     # Step 1: Extract topics from the essay
     print("[Keyword Extractor] 📝 Analyzing document for key topics...")
     
-    single_word_topics = extract_topics_from_text(essay, max_topics=4)
-    phrase_topics = extract_phrases_from_text(essay, max_phrases=2)
+    single_word_topics = extract_topics_from_text(essay, max_topics=10)
+    phrase_topics = extract_phrases_from_text(essay, max_phrases=5)
     
     all_topics = single_word_topics + phrase_topics
     

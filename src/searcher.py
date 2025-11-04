@@ -20,7 +20,7 @@
 from bot_browser import get_page, user_close, ran_wait
 from bot_browser import get_all_web_links, human_wait, close_browser
 import asyncio
-
+from concurrent.futures import ThreadPoolExecutor
 
 
 class Searcher:
@@ -30,15 +30,21 @@ class Searcher:
         self.engine_url = engine_url
         self.filters = filters
         self.loop = loop
+        self.executor = ThreadPoolExecutor()
     
     def log(self, mssg):
         print(mssg)
         
-    def execute_sync(self):
+    def _run_execute_async(self):
         if self.loop == None:
             print("ERROR: No event loop specified for synchronous execution of search.")
             exit(-1)
         return self.loop.run_until_complete(self.execute())
+
+    def execute_sync(self):
+        future = self.executor.submit(self._run_execute_async)
+        return future.result()
+
     
     async def execute(self):
         page = await get_page()

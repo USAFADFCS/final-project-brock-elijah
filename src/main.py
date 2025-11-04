@@ -6,7 +6,10 @@ from keyword_extractor_tool import Keyword_Extractor_Tool
 from agentic_source_finder import agentically_find_sources
 
 
-
+TESTS_TO_DO = {
+    "resource_finder": False,
+    "agent": True
+}
 
 
 
@@ -17,21 +20,30 @@ def main():
     print("Search loop created")
     research_tool = Research_Tool(search_loop)
     print("Research tool instantiated")
-    keyword_tool = Keyword_Extractor_Tool()
+    keyword_tool = Keyword_Extractor_Tool("")
     print("Keyword extractor tool instantiated")
 
 
     # brief test of the tool
-    print("\n\n" + "="*50 + "\nTesting Resource Finder Tool\n" + "="*50) # header
-    perform_research_tool_test_call(research_tool)
+    if (TESTS_TO_DO["resource_finder"]):
+        print("\n\n" + "="*50 + "\nTesting Resource Finder Tool\n" + "="*50) # header
+        perform_research_tool_test_call(research_tool)
+        research_tool.sources = [] # clear the sources
 
-    # brief test of the AI
-    print("\n\n" + "="*50 + "\nTesting Resource Finder Agent\n" + "="*50) # header
-    dog_essay = ""
-    with open("./res/dog_essay.txt", "r") as file:
-        dog_essay = file.read()
-    agentically_find_sources(dog_essay, research_tool, keyword_tool)
-
+    if (TESTS_TO_DO["agent"]):
+        # brief test of the AI
+        print("\n\n" + "="*50 + "\nTesting Resource Finder Agent\n" + "="*50) # header
+        dog_essay = ""
+        with open("./res/dog_essay.txt", "r") as file:
+            dog_essay = file.read()
+        asyncio.run(agentically_find_sources(dog_essay, research_tool, 
+                                                                keyword_tool))
+        
+        
+        print("\n\n" + "="*50 + "\nResource Finder Agent Results\n" + "="*50) # header
+        print(f"Found {len(research_tool.sources)} sources across the web")
+        for index, source in enumerate(research_tool.sources):
+            print(f"\t{index}. {source}")
 
     # # =========================================================================
     # # =================== Necessary Cleanup (DO NOT REMOVE) ===================
