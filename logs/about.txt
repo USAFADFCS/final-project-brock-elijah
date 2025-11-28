@@ -1,0 +1,2 @@
+This is where logs go for each agentic execution. This is identical to the transcript that is 
+recieved by the frontend web interface.

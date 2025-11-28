@@ -1,0 +1,5 @@
+
+
+
+This is the directory where the .wallet file will go which holds all of your API keys. On the first
+run, this file should be instantiated with the requisite fields, which can then just be filled in.
