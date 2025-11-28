@@ -1,0 +1,114 @@
+
+Problem: Create a web front-end in pure HTML, CSS, and JS. The web front-end will be used
+as GUI for an agentic LLM-based essay reviewer.
+
+Design:
+Dark color palette, using the following color theme:
+    /** Base colors */
+    --clr-dark-a0: #000000;
+    --clr-light-a0: #ffffff;
+
+    /** Theme primary colors */
+    --clr-primary-a0: #baf17b;
+    --clr-primary-a10: #c3f38a;
+    --clr-primary-a20: #cbf499;
+    --clr-primary-a30: #d3f6a8;
+    --clr-primary-a40: #dbf8b7;
+    --clr-primary-a50: #e2f9c5;
+
+    /** Theme surface colors */
+    --clr-surface-a0: #121212;
+    --clr-surface-a10: #282828;
+    --clr-surface-a20: #3f3f3f;
+    --clr-surface-a30: #575757;
+    --clr-surface-a40: #717171;
+    --clr-surface-a50: #8b8b8b;
+
+    /** Theme tonal surface colors */
+    --clr-surface-tonal-a0: #21251c;
+    --clr-surface-tonal-a10: #363931;
+    --clr-surface-tonal-a20: #4c4f47;
+    --clr-surface-tonal-a30: #63665f;
+    --clr-surface-tonal-a40: #7b7e77;
+    --clr-surface-tonal-a50: #949691;
+
+    /** Success colors */
+    --clr-success-a0: #22946e;
+    --clr-success-a10: #47d5a6;
+    --clr-success-a20: #9ae8ce;
+
+    /** Warning colors */
+    --clr-warning-a0: #a87a2a;
+    --clr-warning-a10: #d7ac61;
+    --clr-warning-a20: #ecd7b2;
+
+    /** Danger colors */
+    --clr-danger-a0: #9c2121;
+    --clr-danger-a10: #d94a4a;
+    --clr-danger-a20: #eb9e9e;
+
+    /** Info colors */
+    --clr-info-a0: #21498a;
+    --clr-info-a10: #4077d1;
+    --clr-info-a20: #92b2e5;
+
+    /** Examples */
+    .bg-primary {
+    color: var(--clr-primary-a50);
+    background-color: var(--clr-surface-a0);
+    }
+
+Main panel to the left into which the user can either copy and paste an essay or upload a pdf, which
+is then converted to plaintext and put into the text box. 
+
+A stylish control bar is on the right, with a placeholder application title and logo on top. It is 
+devided into panels, each of which is collapsible. 
+
+In the control bar, one of the collapsible panels is for AI Usage Level, which is a slider that 
+allows the user to indicate what level of Generative AI they are allowed to use on this assignment.
+The levels are GenAI 0, GenAI 1, GenAI 2, GenAi 3, GenAI 4, GenAI 5, and GenAI 6. The slider has a 
+nice gradient with little circles to indicate where each level is. It will snap to the nearest level
+automatically (fractional levels are not allowed). It will show a brief description of the selected 
+level below the slider, which will transition smoothly whenever a different level is selected. The 
+slider will default to level 0. Details about each AI level can be found in the pdf.
+
+When there is text uploaded in the main box, a control panel will also appear. Based on a list of tool names
+requested from the server, include a checklist which allows the user to select which tools should 
+be available to the agent. Make it stylish, and do not use checkboxes. Also in the control panel is
+a small text box in which additional instructions can be given to the LLM agent.
+
+Finally, underneath all of these controls is a "Run" button, which is not collapsible. Selecting 
+this button puts all of the collected data together in a consistent json format, which will be 
+sent back to the server to be run through the LLM. The server will eventually respond with a 
+json response of the format:
+    {
+        "revised_text" : "the new text of the essay",
+        "additional_downloadable_files": [
+            {
+                "name": "Documentation",
+                "extension": "pdf",
+                "data": // the actual bytes of the file
+            }
+        ],
+        "transcript": "A multiline transcript of the LLM's entire thought process"
+    }
+Until this response is recieved, a very smooth and stylish loading animation will play next to the 
+"Run" button. Nothing in the UI can be edited (i.e. settings or text) while the application is waiting
+for a response from the server. Once the response is recieved, the transcript will be available underneath
+a separate tab on the essay text panel. The tab navigation bar is at the top, and allows the user to 
+select between all the currently open tabs. All tabs that are not the main essay tab may be closed 
+with a button on the tab in the navigation bar. The revised text will be updated into the essay 
+text box. All of the additional files which have been returned by the server will have a button 
+populated right underneath the essay text panel. Clicking any of these buttons will download the 
+corresponding file.
+
+Note that everything in this UI which changes at any point in time will be smoothly animated with 
+transitions.
+
+Because the server has not yet been fully implemented, any portion that relies on the server will
+instead call one of several fake server interaction functions, which will wait for a reasonable 
+amount of time and return some static example data, which will allow the program to proceed as if there 
+were a server connected. All of these connections will be located in the same js file such that 
+they can easily be hooked up to real server connections in the future.
+
+Keep CSS, HTML, and JS in separate files.

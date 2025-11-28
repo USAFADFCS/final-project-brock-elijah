@@ -1,0 +1,31 @@
+
+Purpose: Create a minimalist agentic framework that uses the OpenAI API, the ReACT framework, and 
+a custom toolset to solve problems.
+
+Design:
+
+# this class is never actually implemented, it just describes the signatures to
+# expect for every entry in the tool_list argument of the Agent constructor.
+class Tool:
+    description : str # a text description of the tool, what it does, and what arguments it needs
+    use(args : "str") # returns False if there was an issue, a string output otherwise
+
+# an example base system prompt string that might be passed to the Agent constructor:
+"""
+You are helpful AI assistant in charge of generating weather reports. You will be prompted with
+specific days and locations. You will generate a comprehensive weather report on the weather for 
+that day and that location. Do not use your own knowledge at all, rely only on the tools you have 
+been provided to collect information.
+"""
+
+class Agent:
+    Agent(system_prompt : str, tool_list : list, model : str, api_key : str) 
+    # constructor, accepts a base system prompt and a list of tool
+    # please not that the system_prompt passed to the constructor is only a base prompt, and extra 
+    # additions are possible. Also accepts a string with an OpenAI model name, and an api_key
+    # to access the model with.
+
+    prompt(problem_prompt : str, max_react_iterations : int) # use the ReAct framework to agentically
+    # solve a problem. The problem prompt is given in the problem_prompt argument, and the max_react_iterations
+    # tells the maximum number of times the agent can iterate through the ReAct cycle.
+

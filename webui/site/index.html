@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agentic Essay Reviewer</title>
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- PDF.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+    <div class="app-container">
+        
+        <!-- MAIN PANEL -->
+        <main class="main-panel" id="mainPanel">
+            <!-- Tabs -->
+            <nav class="tab-nav" id="tabNav">
+                <button class="tab-btn active" data-tab="essay" onclick="switchTab('essay')">
+                    <i class="fas fa-pen-nib"></i> Essay
+                </button>
+                <!-- Transcript tab injected here -->
+            </nav>
+
+            <!-- Tab Content: Essay -->
+            <div id="essay" class="tab-pane active">
+                <div class="upload-controls">
+                    <span style="font-size: 0.9rem; color: var(--clr-surface-a40);">Paste text or upload PDF</span>
+                    <div>
+                        <input type="file" id="pdfUpload" accept=".pdf,.txt" style="display: none;" onchange="handleFileUpload(this)">
+                        <button class="btn-upload" onclick="document.getElementById('pdfUpload').click()">
+                            <i class="fas fa-file-upload"></i> Upload PDF
+                        </button>
+                    </div>
+                </div>
+                <textarea class="main-input" id="essayText" placeholder="Enter your essay text here..."></textarea>
+                
+                <!-- File Downloads Container -->
+                <div class="files-area" id="filesArea">
+                    <!-- Buttons injected here -->
+                </div>
+            </div>
+
+            <!-- Tab Content: Transcript -->
+            <div id="transcript" class="tab-pane">
+                <div class="transcript-view" id="transcriptContent">
+                    <!-- Transcript text injected here -->
+                </div>
+            </div>
+        </main>
+
+        <!-- CONTROL BAR -->
+        <aside class="control-bar">
+            <div class="app-header">
+                <div class="logo">A</div>
+                <div class="app-title">Agentic Reviewer</div>
+            </div>
+
+            <div class="panels-container">
+                
+                <!-- Panel 1: AI Usage Level -->
+                <div class="panel-section open">
+                    <div class="panel-header" onclick="togglePanel(this)">
+                        <h3>AI Usage Level</h3>
+                        <i class="fas fa-chevron-down chevron"></i>
+                    </div>
+                    <div class="panel-content">
+                        <div class="slider-container">
+                            <div class="range-wrapper">
+                                <div class="ticks">
+                                    <div class="tick"></div><div class="tick"></div><div class="tick"></div>
+                                    <div class="tick"></div><div class="tick"></div><div class="tick"></div>
+                                    <div class="tick"></div>
+                                </div>
+                                <input type="range" min="0" max="6" value="0" step="1" id="aiSlider" onchange="handleAiLevelChange(this.value)">
+                            </div>
+                            <div class="level-desc" id="aiDesc">
+                                <!-- Initial description loaded by JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Panel 2: Agent Tools -->
+                <div class="panel-section open" id="toolsPanel" style="display: none; opacity: 0; transition: opacity 0.5s ease;">
+                    <div class="panel-header" onclick="togglePanel(this)">
+                        <h3>Agent Tools</h3>
+                        <i class="fas fa-chevron-down chevron"></i>
+                    </div>
+                    <div class="panel-content">
+                        <div class="tools-grid" id="toolsGrid">
+                            <!-- Tools injected by JS -->
+                        </div>
+                        <div style="margin-top: 1rem;">
+                            <label style="font-size: 0.85rem; color: var(--clr-surface-a50); display: block; margin-bottom: 0.5rem;">Additional Instructions</label>
+                            <textarea class="instructions-input" id="extraInstruct" placeholder="e.g., Focus on passive voice..."></textarea>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Run Button Area -->
+            <div class="run-section">
+                <button class="btn-run" id="runBtn" onclick="runAgent()">Run Analysis</button>
+                <div class="loader-wrapper" id="loader">
+                    <div class="loader"></div>
+                </div>
+            </div>
+        </aside>
+
+    </div>
+    <script src="./server_interaction.js"></script>
+    <script src="./script.js"></script>
+</body>
+</html>

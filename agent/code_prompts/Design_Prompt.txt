@@ -1,0 +1,6 @@
+Based on the following design plan, create a robust Agent class implementation. You may include 
+additional methods or settings you think would be helpful and appropriate, however you must ensure 
+that the methods defined in the design are implemented with those exact signatures. 
+
+You may use the OpenAI or requests library, but no other dependencies are authorized. We want to 
+minimize imports to make it easier to set up the environment.
