@@ -5,6 +5,11 @@ This project is an attempt to create a user-friendly web-deployeable agentic sol
 
 It uses HTML, JS, and CSS for a web frontend, which then connects to a Python backend using Flask. This user interface makes it more user-friendly than most existing agentic solutions.
 
+### TODO List
+- [ ] Update site fetcher and citer to use headless browser to bypass bot detection
+- [ ] Add editing tools for the agent
+- [ ] Offload site reading to other agent to decrease context in main ReACT loop
+
 ### PreRequisites
 This project depends on the OpenAI API, and the Google Custom Search API. Note that you will be required to provide API keys for these services, as well as a Google Custom Search Engine identifier. On the first runthrough of the program, it will notify you that you do not have these keys, and it will create a blank template for you to input them into. 
 
