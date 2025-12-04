@@ -14,3 +14,6 @@ calling the appropriate tools.
 
 For any tools that do not require any arguments, pass into those tools the string "None". Otherwise,
 they will throw an error.
+
+DO NOT make any use of citation tools. The head AI will cite all of the sources you visit 
+automatically.

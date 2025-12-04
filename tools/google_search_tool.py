@@ -8,6 +8,7 @@ from typing import List, Dict
 import json
 from util.single_string_cleaner import clean_single_string
 from util.app_context import App_Context
+from util.ascii_filter import filter_non_ascii
 
 class GoogleSearchTool(Tool):
     name = "google-search-tool"
@@ -113,14 +114,14 @@ class GoogleSearchTool(Tool):
 
         self.found_links = results
         
-        to_keep = 5
+        to_keep = 3
         index = 0
         for link in self.found_links:
             if index < to_keep:
                 self.ctx.all_visited_sites.append(link["link"])
             index += 1
         
-        return json.dumps(results)
+        return filter_non_ascii(json.dumps(results))
 
     
 

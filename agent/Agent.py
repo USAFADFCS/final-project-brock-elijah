@@ -139,6 +139,7 @@ Begin!
         """
         Internal method to call OpenAI API with retry logic.
         Uses stop sequences to prevent hallucination of tool outputs.
+        Enforces ASCII-only output.
         """
         response = self.client.chat.completions.create(
             model=self.model,
@@ -146,7 +147,11 @@ Begin!
             temperature=0,      # Deterministic output for tool usage
             stop=["Observation:"] # CRITICAL: Stop generating before hallucinating the result
         )
-        return response.choices[0].message.content.strip()
+        content = response.choices[0].message.content.strip()
+        
+        # Enforce ASCII only: encode to ascii ignoring errors, then decode back to string.
+        # This strips out any non-ASCII characters.
+        return content.encode('ascii', 'ignore').decode('ascii')
 
     def _parse_output(self, llm_output: str) -> Union[str, Dict[str, str], None]:
         """
@@ -243,14 +248,28 @@ Begin!
                 self.log.log(f"Observation: {observation}")
                 
                 # 4. Observation Injection
-                # We inject the observation as a User message to simulate environment feedback
-                messages.append({"role": "user", "content": f"Observation: {observation}"})
+                # We inject the observation as a User message to simulate environment feedback.
+                message_content = f"Observation: {observation}"
+                
+                # Check for iteration warning to ensure agent concludes
+                remaining_iterations = max_react_iterations - iterations
+                if remaining_iterations <= 2:
+                    message_content += f"\nWarning: You have {remaining_iterations} iterations remaining. Please formulate a Final Answer soon."
+
+                messages.append({"role": "user", "content": message_content})
             
             # Case C: Parsing Failure
             else:
                 self.log.log("WARNING: Failed to parse Action or Final Answer. Nudging agent.")
                 # If the agent rambles without an action, we nudge it back on track
-                messages.append({"role": "user", "content": "You did not specify an Action or Final Answer. Please continue using the specified format."})
+                nudge_content = "You did not specify an Action or Final Answer. Please continue using the specified format."
+                
+                # Add urgency warning to the nudge as well
+                remaining_iterations = max_react_iterations - iterations
+                if remaining_iterations <= 2:
+                    nudge_content += f" Warning: {remaining_iterations} iterations remaining."
+                
+                messages.append({"role": "user", "content": nudge_content})
                 
         # Loop Exited without Answer
         return "Agent Failure: Maximum iterations reached without a Final Answer."

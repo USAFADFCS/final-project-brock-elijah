@@ -4,6 +4,7 @@ from util.prompt_loader import Prompt
 from util.app_context import App_Context
 from tools.tool_registry import *
 import json
+from util.ascii_filter import filter_non_ascii
 
 class Application_Instance:
     
@@ -39,7 +40,7 @@ class Application_Instance:
         return json.dumps(self.ctx.wc.works, indent=2)
     
     def run_agentic(self, additional_prompting : str, essay : str, max_iter : int = 10):
-        self.ctx.essay = essay
+        self.ctx.essay = filter_non_ascii(essay)
         self.ctx.toolbox = self.tools
         self.ctx.max_iter = max_iter
         self.ctx.model_name = self.target_model

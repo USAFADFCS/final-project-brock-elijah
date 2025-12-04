@@ -1,6 +1,7 @@
 from util.application import Application_Instance
 from tools.tool_registry import *
-
+import json
+from util import ascii_filter
 
 class Application_API:
     def __init__(self):
@@ -90,5 +91,8 @@ class Application_API:
         
         
         self.has_run = True
+        
+        # output validation
+        out = json.loads(ascii_filter.filter_non_ascii(json.dumps(out)))
         
         return out
