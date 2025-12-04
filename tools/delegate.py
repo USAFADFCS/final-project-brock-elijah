@@ -21,10 +21,16 @@ class Delegate_Tool(Tool):
 
     def use(self, args: str):
         self.ctx.log.log("[DELEGATION TOOL] : Executing task.")
-        agent = Agent(Prompt("delegate_prompt"), self.ctx.toolbox,
+        
+        new_tools = []
+        for tool in self.ctx.toolbox:
+            if tool != self:
+                new_tools.append(tool)
+                
+        agent = Agent(Prompt("delegate_prompt"), new_tools,
                    self.ctx.model_name, self.ctx.wallet.get("OPENAI"), self.ctx.log)
         
-        self.ctx.log.log("[APPLICATION] : Beginning agentic execution...")
         out = agent.prompt(args, self.ctx.max_iter)
         
+        self.ctx.log.log("[DELEGATION TOOL] : Task complete.")
         return out
