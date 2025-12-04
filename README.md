@@ -7,9 +7,8 @@ It uses HTML, JS, and CSS for a web frontend, which then connects to a Python ba
 
 ### TODO List
 - [x] Update site fetcher and citer to use headless browser to bypass bot detection
-- [ ] Add editing tools for the agent
 - [x] Offload site reading to other agent to decrease context in main ReACT loop
-- [ ] Allow agent to leave notes for the user
+- [x] Allow agent to leave notes for the user
 
 ### PreRequisites
 This project depends on the OpenAI API, and the Google Custom Search API. Note that you will be required to provide API keys for these services, as well as a Google Custom Search Engine identifier. On the first runthrough of the program, it will notify you that you do not have these keys, and it will create a blank template for you to input them into. 
