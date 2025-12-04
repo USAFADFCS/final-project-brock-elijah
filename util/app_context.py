@@ -9,4 +9,5 @@ class App_Context:
         self.wc = Works_Cited()
         self.essay = essay
         self.wallet = Key_Wallet(self.log)
+        self.all_visited_sites = []
         

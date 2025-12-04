@@ -1,3 +1,8 @@
+"""
+Does individual citations, has been deprecated and replaced with bulk citation tools.
+"""
+
+
 from util.logs import Log
 from util.citations import get_citation_apa, get_citation_mla
 from tools.tool import Tool

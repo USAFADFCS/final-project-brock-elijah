@@ -188,4 +188,6 @@ class SiteFetcherTool(Tool):
         out = filter_non_ascii(out)
         if len(out) > MAX_CHARS:
             return out[:MAX_CHARS]
+        
+        self.ctx.all_visited_sites.append(url) # add it to our tracker for future citation
         return out
