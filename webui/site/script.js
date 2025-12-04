@@ -323,24 +323,94 @@ function handleResponse(data) {
     nav.appendChild(btn);
   }
 
-  // Handle Files
+  // Handle Files - UPDATED SECTION
   const filesArea = document.getElementById("filesArea");
   filesArea.innerHTML = ""; // Clear old
+  
   data.additional_downloadable_files.forEach((file) => {
+    // 1. Create a Blob from the file content string
+    const mimeType = getPlaintextMimeType(file.extension);
+    const fileBlob = new Blob([file.data], { type: mimeType });
+
+    // 2. Create a temporary URL for the Blob
+    const fileURL = URL.createObjectURL(fileBlob);
+
     const a = document.createElement("a");
     a.className = "file-btn";
-    a.href = "#";
+    a.href = fileURL;
+    // --- KEY CHANGES ---
+    // 3. Open in a new tab by adding target="_blank"
+    a.target = "_blank"; 
+    // 4. Remove a.download = ...
+    // -------------------
+    
+    // 5. Clean up the object URL when the link is clicked
     a.onclick = (e) => {
-      e.preventDefault();
-      alert(`Downloading ${file.name}.${file.extension}...`);
+      // This allows the link to navigate to the URL, opening the file in a new tab.
+      // Clean up the object URL immediately after the click event processes
+      setTimeout(() => URL.revokeObjectURL(fileURL), 100);
     };
-    a.innerHTML = `<i class="fas fa-file-pdf"></i> ${file.name}.${file.extension}`;
+
+    a.innerHTML = `<i class="fas fa-file-alt"></i> ${file.name}.${file.extension}`;
     filesArea.appendChild(a);
   });
 
   // Flash success color on text area
   textArea.style.borderColor = "var(--clr-success-a0)";
   setTimeout(() => (textArea.style.borderColor = ""), 1000);
+}
+
+// Helper function to determine specific plaintext MIME type
+function getPlaintextMimeType(extension) {
+    switch (extension.toLowerCase()) {
+        case 'json':
+            return 'application/json';
+        case 'html':
+            return 'text/html';
+        case 'css':
+            return 'text/css';
+        case 'js':
+            return 'text/javascript';
+        case 'xml':
+            return 'application/xml';
+        default:
+            return 'text/plain'; // Default for txt, log, etc.
+    }
+}
+
+// Helper function to determine specific plaintext MIME type
+function getPlaintextMimeType(extension) {
+    switch (extension.toLowerCase()) {
+        case 'json':
+            return 'application/json';
+        case 'html':
+            return 'text/html';
+        case 'css':
+            return 'text/css';
+        case 'js':
+            return 'text/javascript';
+        case 'xml':
+            return 'application/xml';
+        default:
+            return 'text/plain'; // Default for txt, log, etc.
+    }
+}
+
+// Helper function to determine MIME type
+function getMimeType(extension) {
+    switch (extension.toLowerCase()) {
+        case 'pdf':
+            return 'application/pdf';
+        case 'txt':
+            return 'text/plain';
+        case 'docx':
+            return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        case 'zip':
+            return 'application/zip';
+        // Add more file types as needed
+        default:
+            return 'application/octet-stream'; // Default for unknown binary files
+    }
 }
 
 function closeTranscript(e, closeBtn) {

@@ -7,7 +7,7 @@ import requests
 from typing import List, Dict
 import json
 from util.single_string_cleaner import clean_single_string
-
+from util.app_context import App_Context
 
 class GoogleSearchTool(Tool):
     name = "google-search-tool"
@@ -20,14 +20,15 @@ class GoogleSearchTool(Tool):
     """
     alias = "Search Google"
 
-    def __init__(self, logger: Log, wallet: Key_Wallet):
+    def __init__(self, ctx : App_Context):
+        self.ctx = ctx
         self.found_links: List[Dict] = []
-        self.logger = logger
+        self.logger = ctx.log
         # API key (required by keys.wallet)
-        self.gs_api_key = wallet.get("GOOGLE_SEARCH")
+        self.gs_api_key = ctx.wallet.get("GOOGLE_SEARCH")
 
         # Try to find a CX (search engine id) in the wallet first, otherwise from environment
-        self.gs_cx = wallet.get("GOOGLE_CX")
+        self.gs_cx = ctx.wallet.get("GOOGLE_CX")
         
         
     def _sanitize_url(self, url: str) -> str:

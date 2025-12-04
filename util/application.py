@@ -1,25 +1,17 @@
 from util.logs import Log
-from tools.citation_tools import APA_Citation_Tool, MLA_Citation_Tool
-from tools.google_search_tool import GoogleSearchTool
-from tools.site_fetcher_tool import SiteFetcherTool
 from agent.Agent import Agent
-from util.works_cited import Works_Cited
-from keys.wallet import Key_Wallet
 from util.prompt_loader import Prompt
+from util.app_context import App_Context
+from tools.tool_registry import *
 import json
 
 class Application_Instance:
     
     def __init__(self, noisy=False):
-        self.log = Log(noisy)
-        self.works_cited = Works_Cited()
-        self.wallet = Key_Wallet(self.log)
-        self.tools = [
-            APA_Citation_Tool(self.log, self.works_cited),
-            MLA_Citation_Tool(self.log, self.works_cited),
-            GoogleSearchTool(self.log, self.wallet),
-            SiteFetcherTool(self.log)
-        ]
+        self.ctx = App_Context("No essay supplied.", noisy)
+        self.tools = []
+        for tool in ALL_TOOLS:
+            self.tools.append(tool(self.ctx))
         self.system_prompt = Prompt("system_prompt").txt
         self.target_model = "gpt-4.1-mini"
         
@@ -37,26 +29,33 @@ class Application_Instance:
         self.tools = allowed_tools
         
     def dump_log(self):
-        self.log.save()
-        return self.log.as_string
+        self.ctx.log.save()
+        return self.ctx.log.as_string
     
     def dump_works_cited(self):
-        return self.works_cited.purge()
+        return self.ctx.wc.purge()
     
     def dump_works_cited_json(self):
-        return json.dumps(self.works_cited.works, indent=2)
+        return json.dumps(self.ctx.wc.works, indent=2)
     
-    def run_agentic(self, additional_prompting : str, essay : str, max_iter : int = 20):
+    def run_agentic(self, additional_prompting : str, essay : str, max_iter : int = 10):
+        self.ctx.essay = essay
+        
         syst_prompt = self.system_prompt
+        self.ctx.log.log(f"[APPLICATION] : Using prompt {syst_prompt[0:100].replace("\n", " ")}")
+        tool_names = []
+        for tool in self.tools:
+            tool_names.append(tool.name)
+        self.ctx.log.log(f"\tUsing tools: {json.dumps(tool_names)}")
         if (additional_prompting != ""):
             self.system_prompt += f"\nAdditionally, the user has instructed you: \"{additional_prompting}\""
         
         self.agent = Agent(syst_prompt, self.tools,
-                           self.target_model, self.wallet.get("OPENAI"), self.log)
+                           self.target_model, self.ctx.wallet.get("OPENAI"), self.ctx.log)
         
-        self.log.log("[APPLICATION] : Beginning agentic execution...")
+        self.ctx.log.log("[APPLICATION] : Beginning agentic execution...")
         out = self.agent.prompt(essay, max_iter)
-        self.log.log("[APPLICATION] : Agentic execution complete!")
-        self.log.log("\tOutput: " + out)
+        self.ctx.log.log("[APPLICATION] : Agentic execution complete!")
+        self.ctx.log.log("\tOutput: " + out)
         
         return out

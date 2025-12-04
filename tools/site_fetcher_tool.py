@@ -6,6 +6,7 @@ from urllib3.util.retry import Retry
 from bs4 import BeautifulSoup
 from util.single_string_cleaner import clean_single_string
 from util.ascii_filter import filter_non_ascii
+from util.app_context import App_Context
 
 MAX_CHARS = 50000
 
@@ -43,8 +44,9 @@ class SiteFetcherTool(Tool):
     """
     alias = "Fetch Sites"
 
-    def __init__(self, logger: Log):
-        self.logger = logger
+    def __init__(self, ctx : App_Context):
+        self.logger = ctx.log
+        self.ctx = ctx
 
     def use(self, args: str):
         args = clean_single_string(args)

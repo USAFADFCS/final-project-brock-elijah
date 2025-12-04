@@ -1,14 +1,5 @@
-from tools.citation_tools import MLA_Citation_Tool, APA_Citation_Tool
-from tools.site_fetcher_tool import SiteFetcherTool
-from tools.google_search_tool import GoogleSearchTool
 from util.application import Application_Instance
-
-ALL_TOOLS = [
-    MLA_Citation_Tool,
-    APA_Citation_Tool,
-    SiteFetcherTool,
-    GoogleSearchTool
-]
+from tools.tool_registry import *
 
 
 class Application_API:
@@ -32,6 +23,8 @@ class Application_API:
         if ai_level >= 1:
             available.append(SiteFetcherTool.alias)
             available.append(GoogleSearchTool.alias)
+        if ai_level >= 3:
+            available.append(Essay_Reader_Tool.alias)
         
         return available
 
@@ -78,6 +71,8 @@ class Application_API:
                 "data": app.dump_works_cited()
             }
         )
+        
+        out["revised_text"] = app.ctx.essay
         
         
         self.has_run = True

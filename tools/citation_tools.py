@@ -3,7 +3,7 @@ from util.citations import get_citation_apa, get_citation_mla
 from tools.tool import Tool
 from util.works_cited import Works_Cited
 from util.single_string_cleaner import clean_single_string
-
+from util.app_context import App_Context
 
 class MLA_Citation_Tool(Tool):
     name = "mla-citation-tool"
@@ -14,9 +14,10 @@ class MLA_Citation_Tool(Tool):
     """
     alias = "MLA Citer"
 
-    def __init__(self, logger: Log, works_cited : Works_Cited):
-        self.logger = logger
-        self.works_cited = works_cited
+    def __init__(self, ctx : App_Context):
+        self.logger = ctx.log
+        self.works_cited = ctx.wc
+        self.ctx = ctx
 
     def use(self, args: str):
         args = clean_single_string(args)
@@ -38,9 +39,10 @@ class APA_Citation_Tool(Tool):
     """
     alias = "APA Citer"
 
-    def __init__(self, logger: Log, works_cited : Works_Cited):
-        self.logger = logger
-        self.works_cited = works_cited
+    def __init__(self, ctx : App_Context):
+        self.logger = ctx.log
+        self.works_cited = ctx.wc
+        self.ctx = ctx
 
     def use(self, args: str):
         args = clean_single_string(args)
