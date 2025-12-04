@@ -20,6 +20,7 @@ class Application_API:
         if True:
             available.append(Bulk_MLA_Citation_Tool.alias)
             available.append(Bulk_APA_Citation_Tool.alias)
+            available.append(Delegate_Tool.alias)
         if ai_level >= 1:
             available.append(SiteFetcherTool.alias)
             available.append(GoogleSearchTool.alias)
