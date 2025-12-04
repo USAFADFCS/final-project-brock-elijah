@@ -24,6 +24,7 @@ class Application_API:
         if ai_level >= 1:
             available.append(SiteFetcherTool.alias)
             available.append(GoogleSearchTool.alias)
+            available.append(Leave_Note_Tool.alias)
         if ai_level >= 3:
             available.append(Essay_Reader_Tool.alias)
         
@@ -53,7 +54,7 @@ class Application_API:
     def run_analysis(self, query):
         app = Application_Instance(True)
         app.filter_down(query["tools"])
-        app.run_agentic(query["instructions"], query["text"], 20)
+        app.run_agentic(query["instructions"], query["text"], 15)
 
         out = {}
         out["transcript"] = app.dump_log()
@@ -72,6 +73,18 @@ class Application_API:
                 "data": app.dump_works_cited()
             }
         )
+        
+        if (len(app.ctx.notes)):
+            notes_str = "=" * 10 + "Notepad" + "=" * 10 + "\n\n"
+            for note in app.ctx.notes:
+                notes_str += f"[NOTE]:\n{note}"
+            out["additional_downloadable_files"].append(
+                {
+                    "name": "AI_Notepad",
+                    "extension": "txt",
+                    "data": notes_str
+                }
+            )
         
         out["revised_text"] = app.ctx.essay
         

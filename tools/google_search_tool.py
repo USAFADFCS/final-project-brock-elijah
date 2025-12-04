@@ -112,6 +112,14 @@ class GoogleSearchTool(Tool):
             results.append(formatted)
 
         self.found_links = results
+        
+        to_keep = 5
+        index = 0
+        for link in self.found_links:
+            if index < to_keep:
+                self.ctx.all_visited_sites.append(link["link"])
+            index += 1
+        
         return json.dumps(results)
 
     

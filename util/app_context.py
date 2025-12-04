@@ -13,3 +13,4 @@ class App_Context:
         self.toolbox = []
         self.max_iter = 10
         self.model_name = ""
+        self.notes = []

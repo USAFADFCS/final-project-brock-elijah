@@ -65,7 +65,11 @@ class Delegate_Tool(Tool):
         agent = Agent(Prompt("delegate_prompt"), new_tools,
                    self.ctx.model_name, self.ctx.wallet.get("OPENAI"), self.ctx.log)
         
-        out = agent.prompt(args, self.ctx.max_iter)
+        
+        try:
+            out = agent.prompt(args, self.ctx.max_iter)
+        except:
+            out = "Delegate was unable to fully finish because it hit the max number of iterations without a final solution."
         
         out += "\n"
         for note in notepad.notes:

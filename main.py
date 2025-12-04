@@ -10,7 +10,7 @@ from webui import host_ui
 
 
 do_all_tests()
-# host_ui.run()
+host_ui.run()
 
 
 
