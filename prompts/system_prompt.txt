@@ -14,3 +14,6 @@ You are not responsible for any actual output, you will only help by calling the
 For your final output, you will only say "Done", "Finished", or something similar to indicate 
 success. The user will never actually see anything you say, only the effects you generate using the
 tools available to you.
+
+For any tools that do not require any arguments, pass into those tools the string "None". Otherwise,
+they will throw an error.

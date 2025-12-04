@@ -40,6 +40,9 @@ class Application_Instance:
     
     def run_agentic(self, additional_prompting : str, essay : str, max_iter : int = 10):
         self.ctx.essay = essay
+        self.ctx.toolbox = self.tools
+        self.ctx.max_iter = max_iter
+        self.ctx.model_name = self.target_model
         
         syst_prompt = self.system_prompt
         self.ctx.log.log(f"[APPLICATION] : Using prompt {syst_prompt[0:100].replace("\n", " ")}")
@@ -54,7 +57,7 @@ class Application_Instance:
                            self.target_model, self.ctx.wallet.get("OPENAI"), self.ctx.log)
         
         self.ctx.log.log("[APPLICATION] : Beginning agentic execution...")
-        out = self.agent.prompt(essay, max_iter)
+        out = self.agent.prompt("Begin helping.", max_iter)
         self.ctx.log.log("[APPLICATION] : Agentic execution complete!")
         self.ctx.log.log("\tOutput: " + out)
         

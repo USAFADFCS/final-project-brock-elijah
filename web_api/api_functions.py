@@ -18,8 +18,8 @@ class Application_API:
         available = []
         
         if True:
-            available.append(MLA_Citation_Tool.alias)
-            available.append(APA_Citation_Tool.alias)
+            available.append(Bulk_MLA_Citation_Tool.alias)
+            available.append(Bulk_APA_Citation_Tool.alias)
         if ai_level >= 1:
             available.append(SiteFetcherTool.alias)
             available.append(GoogleSearchTool.alias)

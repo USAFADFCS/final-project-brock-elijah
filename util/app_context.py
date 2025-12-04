@@ -10,4 +10,6 @@ class App_Context:
         self.essay = essay
         self.wallet = Key_Wallet(self.log)
         self.all_visited_sites = []
-        
+        self.toolbox = []
+        self.max_iter = 10
+        self.model_name = ""
