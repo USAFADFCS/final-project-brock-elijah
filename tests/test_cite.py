@@ -3,7 +3,7 @@ from util.app_context import App_Context
 
 
 # DEFAULT_URL = "https://www.bbc.com/news/articles/c751xw96e9yo"
-DEFAULT_URL = "https://pmc.ncbi.nlm.nih.gov/articles/PMC10218297"
+DEFAULT_URL = "https://pmc.ncbi.nlm.nih.gov/articles/PMC10218297" # requires playwright fallback
 
 def test_mla():
     print("\n\n" + "="*10 + "PERFORMING CITE TEST (MLA)" + "="*10)
