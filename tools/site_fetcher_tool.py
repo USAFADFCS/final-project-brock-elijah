@@ -7,6 +7,9 @@ from bs4 import BeautifulSoup
 from util.single_string_cleaner import clean_single_string
 from util.ascii_filter import filter_non_ascii
 from util.app_context import App_Context
+from playwright.sync_api import sync_playwright
+import io
+import pypdf
 
 MAX_CHARS = 50000
 
@@ -14,22 +17,32 @@ MAX_CHARS = 50000
 def extract_plaintext_from_html(html_content):
     """
     Extracts all visible plaintext from an HTML document.
-
-    Args:
-        html_content (str): The HTML content as a string.
-
-    Returns:
-        str: The extracted plaintext.
     """
     soup = BeautifulSoup(html_content, 'html.parser')
 
-    # Remove script and style elements, as their content is not visible plaintext
+    # Remove script and style elements
     for script_or_style in soup(['script', 'style']):
         script_or_style.decompose()
 
-    # Get all text and strip leading/trailing whitespace, joining with spaces
+    # Get all text and strip leading/trailing whitespace
     plaintext = soup.get_text(separator=' ', strip=True)
     return plaintext
+
+
+def extract_text_from_pdf(pdf_bytes):
+    """
+    Extracts text from PDF binary data.
+    """
+    try:
+        text = ""
+        # Create a file-like object from the bytes
+        with io.BytesIO(pdf_bytes) as f:
+            reader = pypdf.PdfReader(f)
+            for page in reader.pages:
+                text += page.extract_text() + " "
+        return text
+    except Exception as e:
+        return f"Error extracting PDF text: {e}"
 
 
 class SiteFetcherTool(Tool):
@@ -43,57 +56,136 @@ class SiteFetcherTool(Tool):
     find as part of a provided search tool. Do not follow links that you find on any site.
     """
     alias = "Fetch Sites"
+    
+    HEADLESS_MODE = True
 
-    def __init__(self, ctx : App_Context):
+    def __init__(self, ctx: App_Context):
         self.logger = ctx.log
         self.ctx = ctx
 
+    def _fetch_with_playwright(self, url, is_pdf=False):
+        """
+        Fallback method to fetch site content using a headless browser.
+        Returns bytes if is_pdf is True, otherwise returns HTML string.
+        """
+        self.logger.log(f"[SITE FETCHER TOOL] : Attempting fallback with Playwright for {url}...")
+        
+        try:
+            with sync_playwright() as p:
+                browser = p.chromium.launch(
+                    headless=self.HEADLESS_MODE,
+                    args=[
+                        "--disable-blink-features=AutomationControlled",
+                        "--no-sandbox",
+                        "--disable-setuid-sandbox"
+                    ]
+                )
+
+                context = browser.new_context(
+                    user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    viewport={'width': 1920, 'height': 1080},
+                    locale='en-US',
+                    timezone_id='America/New_York'
+                )
+
+                page = context.new_page()
+
+                # Mask automation
+                page.add_init_script("""
+                    Object.defineProperty(navigator, 'webdriver', {
+                        get: () => undefined
+                    });
+                """)
+
+                try:
+                    response = page.goto(url, wait_until="networkidle", timeout=30000)
+                except Exception:
+                    self.logger.log("[SITE FETCHER TOOL] : Playwright network idle timeout, attempting capture.")
+                    # If timeout, we still proceed to capture what we can
+                    response = page.main_frame.page
+
+                if is_pdf:
+                    # For PDFs, we need the raw response body, not the page content (which would be the viewer)
+                    # Note: response object is only valid if goto succeeded or partially succeeded
+                    if response:
+                         content = response.body()
+                    else:
+                        content = None
+                else:
+                    # For HTML, we want the rendered page content (DOM)
+                    content = page.content()
+                
+                browser.close()
+                return content
+
+        except Exception as e:
+            self.logger.log(f"[SITE FETCHER TOOL] : Playwright error: {e}")
+            return None
+
     def use(self, args: str):
-        args = clean_single_string(args)
-        # Create a session that looks more like a real browser and will retry transient failures
+        url = clean_single_string(args)
+        is_pdf = url.lower().endswith(".pdf")
+        
+        # --- Attempt 1: Fast Requests ---
         session = requests.Session()
 
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
                           'AppleWebKit/537.36 (KHTML, like Gecko) '
                           'Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,'
-                      'image/apng,*/*;q=0.8',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
             'Accept-Language': 'en-US,en;q=0.9',
-            'Referer': args,
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
+            'Referer': url,
         }
         session.headers.update(headers)
 
-        # Configure retries for transient HTTP errors
         retry_strategy = Retry(
             total=3,
             backoff_factor=0.3,
-            status_forcelist=(429, 500, 502, 503, 504),
+            status_forcelist=(500, 502, 503, 504),
             allowed_methods=("HEAD", "GET", "OPTIONS")
         )
         adapter = HTTPAdapter(max_retries=retry_strategy)
         session.mount("https://", adapter)
         session.mount("http://", adapter)
 
+        raw_content = None # Can be bytes (PDF) or str (HTML)
+
         try:
-            resp = session.get(args, timeout=10, allow_redirects=True)
+            resp = session.get(url, timeout=10, allow_redirects=True)
+            
+            if resp.status_code != 200:
+                self.logger.log(f"[SITE FETCHER TOOL] : Requests returned status {resp.status_code}. Triggering fallback.")
+                raise requests.RequestException(f"Status Code {resp.status_code}")
+            
+            # If requests works:
+            if is_pdf:
+                raw_content = resp.content # bytes
+            else:
+                raw_content = resp.text # str
+
         except requests.RequestException as e:
-            self.logger.log(f"[SITE FETCHER TOOL] : Network error during fetch: {e}")
+            self.logger.log(f"[SITE FETCHER TOOL] : Standard fetch failed ({e}). Switching to Browser...")
+            # --- Attempt 2: Playwright Fallback ---
+            raw_content = self._fetch_with_playwright(url, is_pdf=is_pdf)
+
+        if not raw_content:
             return False
 
-        if resp.status_code != 200:
-            # Try to extract error details from the API response
-            try:
-                err = resp.text
-                
-            except Exception:
-                err = {"status_code": resp.status_code, "text": resp.text}
-            self.logger.log(f"[SITE FETCHER TOOL] : Server error: {err}")
-            return False
+        # --- Extraction ---
+        if is_pdf:
+            # raw_content should be bytes here
+            if isinstance(raw_content, str):
+                # Edge case: If playwright returned string for PDF (unlikely with .body() but possible on error), try encoding
+                raw_content = raw_content.encode('utf-8')
+            out = extract_text_from_pdf(raw_content)
+        else:
+            # raw_content should be string here
+            if isinstance(raw_content, bytes):
+                raw_content = raw_content.decode('utf-8', errors='ignore')
+            out = extract_plaintext_from_html(raw_content)
 
-        out =  extract_plaintext_from_html(resp.text)
         out = filter_non_ascii(out)
-        if (len(out) > MAX_CHARS):
+        if len(out) > MAX_CHARS:
             return out[:MAX_CHARS]
+        return out
