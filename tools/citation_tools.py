@@ -3,10 +3,10 @@ Does individual citations, has been deprecated and replaced with bulk citation t
 """
 
 
-from util.logs import Log
+# print("USING DEPRECATED CITATION TOOLS -- PLEASE USE BULK CITATION TOOLS INSTEAD")
+
 from util.citations import get_citation_apa, get_citation_mla
 from tools.tool import Tool
-from util.works_cited import Works_Cited
 from util.single_string_cleaner import clean_single_string
 from util.app_context import App_Context
 
@@ -53,7 +53,7 @@ class APA_Citation_Tool(Tool):
         args = clean_single_string(args)
         self.logger.log(f"[APA CITATION TOOL] : Creating APA citation for [{args}]")
         try:
-            citation = get_citation_mla(args)
+            citation = get_citation_apa(args)
             self.works_cited.cite("website", "apa", citation)
             return citation
         except Exception as error:
