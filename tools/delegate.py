@@ -25,6 +25,6 @@ class Delegate_Tool(Tool):
                    self.ctx.model_name, self.ctx.wallet.get("OPENAI"), self.ctx.log)
         
         self.ctx.log.log("[APPLICATION] : Beginning agentic execution...")
-        out = agent.prompt("Begin helping.", self.ctx.max_iter)
+        out = agent.prompt(args, self.ctx.max_iter)
         
         return out
