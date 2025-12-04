@@ -5,7 +5,7 @@ from tests.test_api_functs import test_api_functs
 
 TESTS_TO_DO = {
     "search" : False,
-    "fetch" : False,
+    "fetch" : True,
     "mla" : False,
     "apa" : False,
     "api" : False

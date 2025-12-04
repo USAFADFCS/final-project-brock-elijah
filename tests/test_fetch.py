@@ -9,5 +9,8 @@ def test_fetch():
     ctx = App_Context("")
     tool = SiteFetcherTool(ctx)
     # txt = tool.use("https://en.wikipedia.org/wiki/Apple") # does not require playwright
-    txt = tool.use("https://pmc.ncbi.nlm.nih.gov/articles/PMC10218297/") # requires playwright
+    # txt = tool.use("https://pmc.ncbi.nlm.nih.gov/articles/PMC10218297/") # requires playwright
+    
+    
+    txt = tool.use("https://www.lib.uidaho.edu/digital/objects/guidedreading/guidedread017.pdf")
     print("FOUND TEXT IN SITE: " + txt)

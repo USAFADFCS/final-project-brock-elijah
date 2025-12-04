@@ -10,6 +10,7 @@ from util.app_context import App_Context
 from playwright.sync_api import sync_playwright
 import io
 import pypdf
+import time
 
 MAX_CHARS = 50000
 
@@ -18,6 +19,8 @@ def extract_plaintext_from_html(html_content):
     """
     Extracts all visible plaintext from an HTML document.
     """
+    if not html_content:
+        return ""
     soup = BeautifulSoup(html_content, 'html.parser')
 
     # Remove script and style elements
@@ -39,7 +42,9 @@ def extract_text_from_pdf(pdf_bytes):
         with io.BytesIO(pdf_bytes) as f:
             reader = pypdf.PdfReader(f)
             for page in reader.pages:
-                text += page.extract_text() + " "
+                extracted = page.extract_text()
+                if extracted:
+                    text += extracted + " "
         return text
     except Exception as e:
         return f"Error extracting PDF text: {e}"
@@ -63,24 +68,49 @@ class SiteFetcherTool(Tool):
         self.logger = ctx.log
         self.ctx = ctx
 
-    def _is_pdf_content(self, content_bytes, headers=None):
+    def _is_pdf_content(self, content_bytes, headers=None, filename=None):
         """
-        Helper to detect if content is PDF based on Magic Bytes or Headers.
+        Helper to detect if content is PDF based on Magic Bytes, Headers, or Filename.
         """
-        # Check Magic Bytes (%PDF-)
-        if content_bytes and content_bytes.startswith(b'%PDF'):
-            return True
+        # 1. Check Magic Bytes (%PDF-)
+        if content_bytes:
+            if b'%PDF' in content_bytes[:1024]:
+                return True
         
-        # Check Headers
+        # 2. Check Headers
         if headers:
             content_type = headers.get('Content-Type', '').lower()
             if 'application/pdf' in content_type:
                 return True
+        
+        # 3. Check Filename (Fallback for downloads)
+        if filename and filename.lower().endswith('.pdf'):
+            return True
+            
         return False
+
+    def _extract_content(self, raw_content, is_pdf):
+        """
+        Helper to route raw content to the correct extractor (HTML vs PDF).
+        """
+        if not raw_content:
+            return ""
+
+        if is_pdf:
+            # Ensure bytes
+            if isinstance(raw_content, str):
+                raw_content = raw_content.encode('utf-8')
+            return extract_text_from_pdf(raw_content)
+        else:
+            # Ensure string
+            if isinstance(raw_content, bytes):
+                raw_content = raw_content.decode('utf-8', errors='ignore')
+            return extract_plaintext_from_html(raw_content)
 
     def _fetch_with_playwright(self, url):
         """
         Primary method: Fetch site content using a headless browser.
+        Handles direct HTML rendering AND forced file downloads (PDFs).
         Returns (content, is_pdf_boolean).
         """
         self.logger.log(f"[SITE FETCHER TOOL] : Attempting primary fetch with Playwright for {url}...")
@@ -100,31 +130,52 @@ class SiteFetcherTool(Tool):
                     user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                     viewport={'width': 1920, 'height': 1080},
                     locale='en-US',
-                    timezone_id='America/New_York'
+                    timezone_id='America/New_York',
+                    accept_downloads=True 
                 )
 
                 page = context.new_page()
+                page.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
 
-                # Mask automation
-                page.add_init_script("""
-                    Object.defineProperty(navigator, 'webdriver', {
-                        get: () => undefined
-                    });
-                """)
+                # 1. Setup Download Listener
+                downloads = []
+                page.on("download", lambda d: downloads.append(d))
 
+                response = None
                 try:
-                    # Wait for domcontentloaded to ensure we get the response object
                     response = page.goto(url, wait_until="domcontentloaded", timeout=30000)
-                except Exception:
-                    self.logger.log("[SITE FETCHER TOOL] : Playwright network idle timeout, attempting capture.")
-                    response = page.main_frame.page
+                except Exception as e:
+                    if "Download is starting" in str(e):
+                        self.logger.log(f"[SITE FETCHER TOOL] : Download triggered during navigation.")
+                        # Wait briefly for the download object to populate
+                        for _ in range(5):
+                            if downloads: break
+                            time.sleep(0.5)
+                    else:
+                        self.logger.log(f"[SITE FETCHER TOOL] : Playwright navigation warning: {e}")
 
                 final_content = None
                 is_pdf = False
 
-                if response:
+                # 2. Check if a download was captured
+                if downloads:
                     try:
-                        # 1. Inspect raw body for PDF signature
+                        download = downloads[0]
+                        path = download.path()
+                        suggested_filename = download.suggested_filename
+                        
+                        with open(path, 'rb') as f:
+                            final_content = f.read()
+                        
+                        if self._is_pdf_content(final_content, filename=suggested_filename):
+                            is_pdf = True
+                        
+                    except Exception as e:
+                         self.logger.log(f"[SITE FETCHER TOOL] : Error reading downloaded file: {e}")
+
+                # 3. If no download, process the standard response
+                elif response:
+                    try:
                         body_bytes = response.body()
                         headers = response.all_headers()
 
@@ -132,14 +183,16 @@ class SiteFetcherTool(Tool):
                             is_pdf = True
                             final_content = body_bytes
                         else:
-                            # 2. If not PDF, wait for network idle to ensure JS rendering is done
-                            try:
-                                page.wait_for_load_state("networkidle", timeout=5000)
-                            except:
-                                pass # Proceed with what we have
+                            try: page.wait_for_load_state("networkidle", timeout=5000)
+                            except: pass 
                             final_content = page.content()
                     except Exception as e:
                          self.logger.log(f"[SITE FETCHER TOOL] : Error reading Playwright response body: {e}")
+                
+                # 4. Fallback (Partial load)
+                elif not final_content:
+                     try: final_content = page.content()
+                     except: pass
 
                 browser.close()
                 return final_content, is_pdf
@@ -156,38 +209,28 @@ class SiteFetcherTool(Tool):
         self.logger.log(f"[SITE FETCHER TOOL] : Attempting fallback fetch with Requests for {url}...")
         
         session = requests.Session()
-
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-                          'AppleWebKit/537.36 (KHTML, like Gecko) '
-                          'Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.9',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Referer': url,
         }
         session.headers.update(headers)
-
-        retry_strategy = Retry(
-            total=3,
-            backoff_factor=0.3,
-            status_forcelist=(500, 502, 503, 504),
-            allowed_methods=("HEAD", "GET", "OPTIONS")
-        )
-        adapter = HTTPAdapter(max_retries=retry_strategy)
+        
+        adapter = HTTPAdapter(max_retries=Retry(total=3, backoff_factor=0.3, status_forcelist=(500, 502, 503, 504)))
         session.mount("https://", adapter)
         session.mount("http://", adapter)
 
         try:
             resp = session.get(url, timeout=10, allow_redirects=True)
-            
             if resp.status_code != 200:
                 self.logger.log(f"[SITE FETCHER TOOL] : Requests returned status {resp.status_code}.")
                 return None, False
             
-            if self._is_pdf_content(resp.content, resp.headers):
-                return resp.content, True # bytes
+            is_pdf = self._is_pdf_content(resp.content, resp.headers, filename=url)
+            
+            if is_pdf:
+                return resp.content, True
             else:
-                return resp.text, False # str
+                return resp.text, False
 
         except requests.RequestException as e:
             self.logger.log(f"[SITE FETCHER TOOL] : Requests fetch failed: {e}")
@@ -196,36 +239,30 @@ class SiteFetcherTool(Tool):
     def use(self, args: str):
         url = clean_single_string(args)
         
-        raw_content = None 
-        is_pdf = False
-
         # --- Attempt 1: Playwright (Default) ---
         raw_content, is_pdf = self._fetch_with_playwright(url)
+        
+        # Extract immediately to check quality
+        out = self._extract_content(raw_content, is_pdf)
 
         # --- Attempt 2: Requests (Fallback) ---
-        if not raw_content:
-            self.logger.log("[SITE FETCHER TOOL] : Playwright failed to retrieve content. Switching to Requests fallback...")
+        # Trigger if:
+        # 1. raw_content was None (Fetch failed)
+        # 2. out is None/Empty
+        # 3. out is only whitespace
+        if not raw_content or not out or not out.strip():
+            reason = "Fetch failed" if not raw_content else "Returned empty/whitespace text"
+            self.logger.log(f"[SITE FETCHER TOOL] : Playwright {reason}. Switching to Requests fallback...")
+            
             raw_content, is_pdf = self._fetch_with_requests(url)
+            out = self._extract_content(raw_content, is_pdf)
 
-        if not raw_content:
+        if not out or not out.strip():
             return False
-
-        # --- Extraction ---
-        if is_pdf:
-            # raw_content should be bytes here
-            if isinstance(raw_content, str):
-                raw_content = raw_content.encode('utf-8')
-            out = extract_text_from_pdf(raw_content)
-        else:
-            # raw_content should be string here
-            if isinstance(raw_content, bytes):
-                raw_content = raw_content.decode('utf-8', errors='ignore')
-            out = extract_plaintext_from_html(raw_content)
 
         out = filter_non_ascii(out)
         if len(out) > MAX_CHARS:
             out = out[:MAX_CHARS]
         
-        # Add to visited sites for citation tracking
         self.ctx.all_visited_sites.append(url) 
         return out
