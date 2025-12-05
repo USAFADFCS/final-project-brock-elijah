@@ -14,7 +14,8 @@ class Application_Instance:
         for tool in ALL_TOOLS:
             self.tools.append(tool(self.ctx))
         self.system_prompt = Prompt("system_prompt").txt
-        self.target_model = "gpt-4.1-mini"
+        # self.target_model = "gpt-4.1-mini"
+        self.target_model = "gpt-4o"
         
     def get_tool_aliases(self):
         registry = []
