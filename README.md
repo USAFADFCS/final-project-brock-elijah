@@ -34,4 +34,4 @@ Once you specified the AI Level, the essay text, the available tools, and the ad
 Once done, the results will be uploaded to the frontend for viewing. These results will include a modified version of the essay (if the Agent was given editing tools), a transcript of the ReACT process (which can be accessed in the "Transcript" tab), and optionally several additional files which the program outputted (i.e. documentation statements, works cited, etc.).
 
 ### Documentation
-We used AI to write most of our code. These AIs included Github Copilot, Google Gemini, Claude, and ChatGPT. Any code that was not written by AI was at the very least reviewed by AI. For the purposes of documentation, consider this entire project to be AI generated.
+We used AI to write significant portions of our code. These AIs included Github Copilot, Google Gemini, Claude, and ChatGPT.
